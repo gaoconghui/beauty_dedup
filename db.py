@@ -20,4 +20,5 @@ class Image(Model):
         database = database
 
 if __name__ == '__main__':
-    print Image.select().where(Image.key == 'Grandma L.').get()
+    for image in Image.select():
+        print image.phash

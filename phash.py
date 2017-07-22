@@ -14,7 +14,7 @@ import requests
 
 from db import Image
 
-DEFAULT_PHASH = ""
+DEFAULT_PHASH = "00000000000000000000"
 
 
 class pHash(object):
@@ -51,23 +51,28 @@ class pHash(object):
 class ImageManager(object):
     def __init__(self):
         self.phash = pHash()
+        self.phash_cache = {}
 
     def get_phash(self, key):
-        try:
-            return Image.select().where(Image.key == key).get()
-        except:
-            print(key + " not exist , need download")
-            file_path = self._download(key)
+        if key not in self.phash_cache:
+
             try:
-                key_hash = self.phash.dct_imagehash(file_path)
+                self.phash_cache[key] = int(Image.select().where(Image.key == key).get().phash)
             except:
-                key_hash = DEFAULT_PHASH
-            self._delete_file(file_path)
-            image = Image()
-            image.key = key
-            image.phash = key_hash
-            image.gallery_id = key.split("/")[1]
-            image.save()
+                print(key + " not exist , need download")
+                file_path = self._download(key)
+                try:
+                    key_hash = self.phash.dct_imagehash(file_path)
+                except:
+                    key_hash = DEFAULT_PHASH
+                # self._delete_file(file_path)
+                image = Image()
+                image.key = key
+                image.phash = key_hash
+                image.gallery_id = key.split("/")[1]
+                image.save()
+                self.phash_cache[key] = key_hash
+        return self.phash_cache[key]
 
     # def has_same(self, key):
     #     same = False
@@ -83,6 +88,12 @@ class ImageManager(object):
     #             "{k1}  ,  {k2}  maybe same distance:{d}".format(k1=key, k2=k, d=distance)
     #     return same
 
+    def distance(self, key1, key2):
+        # s1 = bin(self.get_phash(key1))[2:].rjust(8,'0')
+        # s2 = bin(self.get_phash(key2))[2:].rjust(8,'0')
+        # return sum([ch1 != ch2 for ch1, ch2 in zip(s1, s2)])
+        return self.phash.hamming_distance(self.get_phash(key1), self.get_phash(key2))
+
     def _download(self, key):
         print("download  " + key)
         url = "http://static.meizibar.com/{key}!dedup1".format(key=key)
@@ -96,6 +107,27 @@ class ImageManager(object):
         if os.path.exists(path):
             os.remove(path)
 
+
 if __name__ == '__main__':
     manager = ImageManager()
-    print(manager.get_phash("images/nB8yUI8Xj/63jxaT7NH"))
+
+
+    # f = open("/tmp/tmp01.log","r")
+    # datas = [d.replace("\n","") for d in f.readlines()]
+    # print(datas)
+    # for index,key in enumerate(datas):
+    #     print (key)
+    #     print (index)
+    #     print(manager.get_phash(key))
+    def hammingDist(s1, s2):
+        assert len(s1) == len(s2)
+        # s1 = "".join([str(bin(int(s,16)))[2:].rjust(8,'0') for s in s1])
+        # s2 = "".join([str(bin(int(s,16)))[2:].rjust(8,'0') for s in s2])
+        return sum([ch1 != ch2 for ch1, ch2 in zip(s1, s2)])
+
+
+    h1 = manager.get_phash("images/3UGUuUhrf/dmvbm40sl")
+    h2 = manager.get_phash("images/EZmA7436J/DOpIgiILX")
+    print(manager.distance("images/3UGUuUhrf/dmvbm40sl", "images/EZmA7436J/DOpIgiILX"))
+    print(bin(h1)[2:])
+    print(bin(h2)[2:].rjust(64, '0'))
